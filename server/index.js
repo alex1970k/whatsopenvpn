@@ -6,6 +6,7 @@ import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import dotenv from 'dotenv';
+import { verifyCredentials, resetCredentials } from './auth.js';
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
@@ -18,6 +19,49 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+// Add authentication middleware
+const authenticate = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const base64Credentials = authHeader.split(' ')[1];
+  const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
+  const [username, password] = credentials.split(':');
+  
+  const isValid = await verifyCredentials(username, password);
+  
+  if (!isValid) {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+  
+  next();
+};
+
+// Add authentication to all routes except /api/auth
+app.use('/api', (req, res, next) => {
+  if (req.path === '/auth/reset') {
+    return next();
+  }
+  return authenticate(req, res, next);
+});
+
+// Add auth reset endpoint
+app.post('/api/auth/reset', async (req, res) => {
+  try {
+    const newCredentials = await resetCredentials();
+    res.json({
+      message: 'Credentials reset successfully',
+      username: newCredentials.username,
+      password: newCredentials.password
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to reset credentials' });
+  }
+});
 
 // Helper functions
 const runCommand = async (command) => {
