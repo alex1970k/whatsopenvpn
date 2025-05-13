@@ -1,16 +1,35 @@
-import fs from 'fs-extra';
+import pg from 'pg';
 import crypto from 'crypto';
+import dotenv from 'dotenv';
 
-const HTPASSWD_PATH = '/var/www/vpn-admin/.htpasswd';
+dotenv.config();
+
+const pool = new pg.Pool({
+  host: 'localhost',
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+});
 
 export async function verifyCredentials(username, password) {
   try {
-    const htpasswdContent = await fs.readFile(HTPASSWD_PATH, 'utf8');
-    const [storedUsername, storedHash] = htpasswdContent.split(':');
+    const passwordHash = crypto.createHash('md5').update(password).digest('hex');
     
-    const inputHash = crypto.createHash('md5').update(password).digest('hex');
+    const result = await pool.query(
+      'SELECT * FROM admin_users WHERE username = $1 AND password_hash = $2',
+      [username, passwordHash]
+    );
     
-    return username === storedUsername && inputHash === storedHash;
+    if (result.rows.length > 0) {
+      // Update last login time
+      await pool.query(
+        'UPDATE admin_users SET last_login = CURRENT_TIMESTAMP WHERE username = $1',
+        [username]
+      );
+      return true;
+    }
+    
+    return false;
   } catch (error) {
     console.error('Error verifying credentials:', error);
     return false;
@@ -20,9 +39,12 @@ export async function verifyCredentials(username, password) {
 export async function resetCredentials() {
   try {
     const newPassword = crypto.randomBytes(8).toString('hex');
-    const newHash = crypto.createHash('md5').update(newPassword).digest('hex');
+    const passwordHash = crypto.createHash('md5').update(newPassword).digest('hex');
     
-    await fs.writeFile(HTPASSWD_PATH, `admin:${newHash}`);
+    await pool.query(
+      'UPDATE admin_users SET password_hash = $1 WHERE username = $2',
+      [passwordHash, 'admin']
+    );
     
     return {
       username: 'admin',

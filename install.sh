@@ -132,8 +132,10 @@ echo_message "Port selected: ${PORT}"
 # Step 6: Set up PostgreSQL
 echo_message "Setting up PostgreSQL database..."
 
-# Generate random password for database
+# Generate random password for database and admin user
 DB_PASSWORD=$(openssl rand -base64 12)
+ADMIN_PASSWORD=$(openssl rand -base64 12)
+ADMIN_USER="admin"
 DB_NAME="openvpn_mgmt"
 DB_USER="openvpn_admin"
 
@@ -143,6 +145,16 @@ CREATE DATABASE $DB_NAME;
 CREATE USER $DB_USER WITH ENCRYPTED PASSWORD '$DB_PASSWORD';
 GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;
 \c $DB_NAME
+
+-- Create admin users table
+CREATE TABLE IF NOT EXISTS admin_users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP WITH TIME ZONE
+);
+
 CREATE TABLE IF NOT EXISTS vpn_users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -152,6 +164,7 @@ CREATE TABLE IF NOT EXISTS vpn_users (
     bytes_sent BIGINT DEFAULT 0,
     active BOOLEAN DEFAULT true
 );
+
 CREATE TABLE IF NOT EXISTS connection_logs (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES vpn_users(id),
@@ -162,6 +175,11 @@ CREATE TABLE IF NOT EXISTS connection_logs (
     ip_address VARCHAR(45),
     CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES vpn_users(id) ON DELETE CASCADE
 );
+
+-- Insert default admin user
+INSERT INTO admin_users (username, password_hash) 
+VALUES ('$ADMIN_USER', MD5('$ADMIN_PASSWORD'));
+
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $DB_USER;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO $DB_USER;
 EOF
@@ -189,8 +207,6 @@ EOF
 # Secure the configuration file
 chown www-data:www-data /var/www/vpn-admin/db_config.php
 chmod 600 /var/www/vpn-admin/db_config.php
-
-[Previous installation script content continues...]
 
 # Add database credentials to README
 cat >> README.md << EOF

@@ -18,7 +18,8 @@
     "cors": "^2.8.5",
     "child_process": "^1.0.2",
     "fs-extra": "^11.2.0",
-    "dotenv": "^16.4.1"
+    "dotenv": "^16.4.1",
+    "pg": "^8.11.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
