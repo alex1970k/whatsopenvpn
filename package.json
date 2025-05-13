@@ -1,18 +1,24 @@
 {
-  "name": "vite-react-typescript-starter",
+  "name": "openvpn-management",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server": "node server/index.js"
   },
   "dependencies": {
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "child_process": "^1.0.2",
+    "fs-extra": "^11.2.0",
+    "dotenv": "^16.4.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
